@@ -36,5 +36,5 @@ if [ ! -f build/build.ninja ]; then
 	echo "building..."
 	meson setup build --prefix="$PWD" --bindir='' -Doptimization=3 --buildtype=release
 fi
-ninja install -C build
+meson install --skip-subprojects -C build
 

@@ -35,29 +35,28 @@ public async string async_test_impl(string txt, string format, void* ptr1, void*
 	SupraTest.Test? res_real = null;
 	int pending = 2;
 
-	SupraTest.complex.begin (2, () => {
-		// runs in a forked child: send the return value back through stderr
-		printerr ("[SupraRet] %d\n", fake_ft_printf (format, ptr1, ft_printf_sym));
+	SupraTest.complex_async.begin (2, () => {
+		SupraTest.send_int (fake_ft_printf (format, ptr1, ft_printf_sym));
 		return true;
 	}, "", (obj, res) => {
-		res_you = SupraTest.complex.end (res);
+		res_you = SupraTest.complex_async.end (res);
 		if (--pending == 0)
 			async_test_impl.callback ();
 	});
 
-	SupraTest.complex.begin (2, () => {
-		printerr ("[SupraRet] %d\n", real_ft_printf (format, ptr2));
+	SupraTest.complex_async.begin (2, () => {
+		SupraTest.send_int (real_ft_printf (format, ptr2));
 		return true;
 	}, "", (obj, res) => {
-		res_real = SupraTest.complex.end (res);
+		res_real = SupraTest.complex_async.end (res);
 		if (--pending == 0)
 			async_test_impl.callback ();
 	});
 
 	yield;
 
-	ret1 = read_ret (res_you);
-	ret2 = read_ret (res_real);
+	ret1 = res_you.result_int ();
+	ret2 = res_real.result_int ();
 	bool b = true;
 	var sb = new StringBuilder();
 
@@ -77,19 +76,13 @@ public async string async_test_impl(string txt, string format, void* ptr1, void*
 			res_you.status = Status.KO;
 	}
 	if (sb.str[0] == '\0') {
-		return res_you.msg(YELLOW + "printf(%s)" + "%s", txt, sb.str);
+		var msg = res_you.msg(YELLOW + "printf(%s)" + "%s", txt, sb.str);
+		if (res_you.status != Status.OK)
+			msg += "\n";
+		return msg;
 	}
 	return res_you.msg(YELLOW + "printf(%s)" + "\n%s", txt, sb.str);
 
-}
-
-/* return value printed by the child, -9999 if it crashed before */
-int read_ret (SupraTest.Test res) {
-	unowned string err = res.stderr ?? "";
-	int idx = err.index_of ("[SupraRet] ");
-	if (idx == -1)
-		return -9999;
-	return int.parse (err.offset (idx + 11));
 }
 
 [CCode (cname = "memchr", cheader_filename = "string.h")]
